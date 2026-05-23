@@ -122,4 +122,58 @@ impl SchoolManagement {
 
         Ok(())
     }
+    
+   /// Updatting  students class profile
+    pub fn update_student_class(env: &Env, student_id: u64, new_class: Class) -> Result<(), ContractError> {
+
+        // Fetching the existing student profile 
+        let mut student: StudentDetails = Self::get_student(env, student_id);
+
+        // Ensuring the student details are active
+        if !student.is_registered {
+            return Err(ContractError::InsufficientFunds); 
+        }
+
+        // Authenticating the transaction signer 
+        student.wallet_address.require_auth();
+
+        student.class_name = new_class;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Student(student_id), &student); 
+
+        Ok(())
+    }
+
+
+    pub fn get_student_payment_history(env: &Env, student_id: u64) -> Vec<Payment> {
+        // Fetching the payment vectors array 
+        env.storage()
+            .persistent()
+            .get(&DataKey::StudentPayments(student_id))
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    /// removing a student from active registration records
+    pub fn remove_student(env: &Env, student_id: u64) -> Result<(), ContractError> {
+        // Look up the targeted student profile
+        let mut student: StudentDetails = Self::get_student(env, student_id);
+
+        // Fetching contract administrator identity from instance state
+        let school_admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        
+        school_admin.require_auth();
+
+        student.is_registered = false;
+
+     
+        env.storage()
+            .persistent()
+            .set(&DataKey::Student(student_id), &student);
+
+        Ok(())
+    }
 }
+
+
